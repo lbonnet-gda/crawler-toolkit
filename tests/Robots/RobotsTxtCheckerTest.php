@@ -26,7 +26,7 @@ final class RobotsTxtCheckerTest extends TestCase
 
     public function testAllowsEverythingWhenRobotsTxtIsMissing(): void
     {
-        $client = new MockHttpClient(static fn () => new MockResponse('', ['http_code' => Response::HTTP_NOT_FOUND]));
+        $client = new MockHttpClient(static fn() => new MockResponse('', ['http_code' => Response::HTTP_NOT_FOUND]));
         $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
 
         $this->assertTrue($checker->isAllowed('https://example.com/anything'));
@@ -45,7 +45,7 @@ final class RobotsTxtCheckerTest extends TestCase
     public function testDisallowsMatchingPathUnderWildcardGroup(): void
     {
         $robotsTxt = "User-agent: *\nDisallow: /admin\n";
-        $client = new MockHttpClient(static fn () => new MockResponse($robotsTxt));
+        $client = new MockHttpClient(static fn() => new MockResponse($robotsTxt));
         $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
 
         $this->assertFalse($checker->isAllowed('https://example.com/admin/settings'));
@@ -55,7 +55,7 @@ final class RobotsTxtCheckerTest extends TestCase
     public function testMostSpecificRuleWins(): void
     {
         $robotsTxt = "User-agent: *\nDisallow: /admin\nAllow: /admin/public\n";
-        $client = new MockHttpClient(static fn () => new MockResponse($robotsTxt));
+        $client = new MockHttpClient(static fn() => new MockResponse($robotsTxt));
         $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
 
         $this->assertFalse($checker->isAllowed('https://example.com/admin/secret'));
@@ -65,7 +65,7 @@ final class RobotsTxtCheckerTest extends TestCase
     public function testUserAgentSpecificGroupOverridesWildcardGroup(): void
     {
         $robotsTxt = "User-agent: *\nDisallow: /\nUser-agent: TestBot\nDisallow: /private\n";
-        $client = new MockHttpClient(static fn () => new MockResponse($robotsTxt));
+        $client = new MockHttpClient(static fn() => new MockResponse($robotsTxt));
         $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
 
         $this->assertTrue($checker->isAllowed('https://example.com/public'));
@@ -75,7 +75,7 @@ final class RobotsTxtCheckerTest extends TestCase
     public function testSupportsWildcardAndEndAnchorPatterns(): void
     {
         $robotsTxt = "User-agent: *\nDisallow: /files/*.pdf$\n";
-        $client = new MockHttpClient(static fn () => new MockResponse($robotsTxt));
+        $client = new MockHttpClient(static fn() => new MockResponse($robotsTxt));
         $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
 
         $this->assertFalse($checker->isAllowed('https://example.com/files/report.pdf'));
@@ -90,7 +90,7 @@ final class RobotsTxtCheckerTest extends TestCase
             yield "User-agent: *\nDisallow: /late\n";
         })();
 
-        $client = new MockHttpClient(static fn () => new MockResponse($body));
+        $client = new MockHttpClient(static fn() => new MockResponse($body));
         $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
 
         $this->assertTrue($checker->isAllowed('https://example.com/late'));
@@ -99,7 +99,7 @@ final class RobotsTxtCheckerTest extends TestCase
     public function testCrawlDelayIsNullWhenNotSpecified(): void
     {
         $robotsTxt = "User-agent: *\nDisallow: /admin\n";
-        $client = new MockHttpClient(static fn () => new MockResponse($robotsTxt));
+        $client = new MockHttpClient(static fn() => new MockResponse($robotsTxt));
         $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
 
         $this->assertNull($checker->crawlDelay('https://example.com/'));
@@ -118,7 +118,7 @@ final class RobotsTxtCheckerTest extends TestCase
     public function testParsesCrawlDelayForWildcardGroup(): void
     {
         $robotsTxt = "User-agent: *\nCrawl-delay: 10\n";
-        $client = new MockHttpClient(static fn () => new MockResponse($robotsTxt));
+        $client = new MockHttpClient(static fn() => new MockResponse($robotsTxt));
         $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
 
         $this->assertSame(10.0, $checker->crawlDelay('https://example.com/'));
@@ -127,7 +127,7 @@ final class RobotsTxtCheckerTest extends TestCase
     public function testUserAgentSpecificCrawlDelayOverridesWildcard(): void
     {
         $robotsTxt = "User-agent: *\nCrawl-delay: 10\nUser-agent: TestBot\nCrawl-delay: 2\n";
-        $client = new MockHttpClient(static fn () => new MockResponse($robotsTxt));
+        $client = new MockHttpClient(static fn() => new MockResponse($robotsTxt));
         $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
 
         $this->assertSame(2.0, $checker->crawlDelay('https://example.com/'));

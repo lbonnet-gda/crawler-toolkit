@@ -1,13 +1,13 @@
 # CrawlerToolkit
 
-Shared, framework-agnostic building blocks for polite and safe web crawlers. Extracted out of
-[lbonnet/link-checker-bundle](https://github.com/lbonnet-gda/link-checker-bundle) and
-[lbonnet/on-page-seo-bundle](https://github.com/lbonnet-gda/on-page-seo-bundle) once both bundles needed the same
+Shared, framework-agnostic building blocks for polite and safe web crawlers. Extracted out
+of [lbonnet/link-checker-bundle](https://github.com/lbonnet-gda/link-checker-bundle)
+and [lbonnet/on-page-seo-bundle](https://github.com/lbonnet-gda/on-page-seo-bundle) once both bundles needed the same
 crawling infrastructure — this package holds only what's genuinely shared, never SEO- or link-specific domain logic,
 which stays in each bundle.
 
-This is not a Symfony bundle: it's a plain library of standalone classes. Each consuming bundle wires them into its
-own service container itself.
+This is not a Symfony bundle: it's a plain library of standalone classes. Each consuming bundle wires them into its own
+service container itself.
 
 ## Components
 
@@ -19,11 +19,11 @@ own service container itself.
 - **`Robots\RobotsTxtChecker`** — fetches and parses a host's `robots.txt`, exposing `isAllowed(url)` and
   `crawlDelay(url)` for a configured user agent (`Allow`/`Disallow`/`Crawl-delay` directives, most-specific-rule-wins
   matching, wildcard and `$` end-anchors).
-- **`Html\LinkDiscoverer`** — parses `<a href>` elements out of an HTML document into a `list<DiscoveredHref>`
-  (absolute URL, anchor text, internal/external), handling relative URL resolution, `<base href>`, fragment
-  stripping, ignored schemes (`mailto:`, `tel:`, ...), and exclusion regex patterns.
-- **`Url\UrlNormalizer`** — `normalizeForDedup()` treats `http://` and `https://` variants of the same URL as the
-  same page for visited-set tracking, without changing the URL actually requested.
+- **`Html\LinkDiscoverer`** — parses `<a href>` elements out of an HTML document into a `list<DiscoveredHref>`(absolute
+  URL, anchor text, internal/external), handling relative URL resolution, `<base href>`, fragment stripping, ignored
+  schemes (`mailto:`, `tel:`, ...), and exclusion regex patterns.
+- **`Url\UrlNormalizer`** — `normalizeForDedup()` treats `http://` and `https://` variants of the same URL as the same
+  page for visited-set tracking, without changing the URL actually requested.
 
 ## Requirements
 
@@ -34,17 +34,6 @@ own service container itself.
 
 ```bash
 composer require lbonnet/crawler-toolkit
-```
-
-For local development against a sibling checkout (before this package is tagged/published), add a path repository
-to the consuming bundle's `composer.json`:
-
-```json
-{
-    "repositories": [
-        {"type": "path", "url": "../crawler-toolkit"}
-    ]
-}
 ```
 
 ## License

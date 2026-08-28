@@ -14,7 +14,7 @@ final class ThrottledHttpClientTest extends TestCase
 {
     public function testDoesNotDelayWhenDisabled(): void
     {
-        $client = new ThrottledHttpClient(new MockHttpClient(static fn () => new MockResponse()), 0);
+        $client = new ThrottledHttpClient(new MockHttpClient(static fn() => new MockResponse()), 0);
 
         $start = microtime(true);
         $client->request(Request::METHOD_GET, 'https://example.com/a');
@@ -26,7 +26,7 @@ final class ThrottledHttpClientTest extends TestCase
 
     public function testDelaysConsecutiveRequestsToTheSameHost(): void
     {
-        $client = new ThrottledHttpClient(new MockHttpClient(static fn () => new MockResponse()), 100);
+        $client = new ThrottledHttpClient(new MockHttpClient(static fn() => new MockResponse()), 100);
 
         $start = microtime(true);
         $client->request(Request::METHOD_GET, 'https://example.com/a');
@@ -38,7 +38,7 @@ final class ThrottledHttpClientTest extends TestCase
 
     public function testDoesNotDelayRequestsToDifferentHosts(): void
     {
-        $client = new ThrottledHttpClient(new MockHttpClient(static fn () => new MockResponse()), 200);
+        $client = new ThrottledHttpClient(new MockHttpClient(static fn() => new MockResponse()), 200);
 
         $start = microtime(true);
         $client->request(Request::METHOD_GET, 'https://example.com/a');
@@ -50,7 +50,7 @@ final class ThrottledHttpClientTest extends TestCase
 
     public function testDoesNotDelayTheExemptedHost(): void
     {
-        $client = new ThrottledHttpClient(new MockHttpClient(static fn () => new MockResponse()), 200);
+        $client = new ThrottledHttpClient(new MockHttpClient(static fn() => new MockResponse()), 200);
         $client->setHostDelay('example.com');
 
         $start = microtime(true);
@@ -63,7 +63,7 @@ final class ThrottledHttpClientTest extends TestCase
 
     public function testStillDelaysOtherHostsWhileOneIsExempted(): void
     {
-        $client = new ThrottledHttpClient(new MockHttpClient(static fn () => new MockResponse()), 100);
+        $client = new ThrottledHttpClient(new MockHttpClient(static fn() => new MockResponse()), 100);
         $client->setHostDelay('example.com');
 
         $start = microtime(true);
@@ -76,7 +76,7 @@ final class ThrottledHttpClientTest extends TestCase
 
     public function testClearingTheExemptionResumesThrottlingThatHost(): void
     {
-        $client = new ThrottledHttpClient(new MockHttpClient(static fn () => new MockResponse()), 100);
+        $client = new ThrottledHttpClient(new MockHttpClient(static fn() => new MockResponse()), 100);
         $client->setHostDelay('example.com');
         $client->request(Request::METHOD_GET, 'https://example.com/a');
         $client->setHostDelay(null);
@@ -90,7 +90,7 @@ final class ThrottledHttpClientTest extends TestCase
 
     public function testHostDelayOverrideAppliesEvenBelowTheGlobalDelay(): void
     {
-        $client = new ThrottledHttpClient(new MockHttpClient(static fn () => new MockResponse()), 50);
+        $client = new ThrottledHttpClient(new MockHttpClient(static fn() => new MockResponse()), 50);
         $client->setHostDelay('example.com', 200);
 
         $start = microtime(true);
@@ -103,7 +103,7 @@ final class ThrottledHttpClientTest extends TestCase
 
     public function testHostDelayOverrideAppliesEvenAboveTheGlobalDelay(): void
     {
-        $client = new ThrottledHttpClient(new MockHttpClient(static fn () => new MockResponse()), 200);
+        $client = new ThrottledHttpClient(new MockHttpClient(static fn() => new MockResponse()), 200);
         $client->setHostDelay('example.com', 50);
 
         $start = microtime(true);
