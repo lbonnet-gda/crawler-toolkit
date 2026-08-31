@@ -16,6 +16,8 @@ service container itself.
   currently being audited).
 - **`Http\BoundedContentReader`** — reads an HTTP response body up to a byte cap, cancelling the request past that
   instead of buffering an unbounded (or malicious) response in memory.
+- **`Http\EffectiveUrlResolver`** — resolves the URL a response was ultimately served from after any redirects the HTTP
+  client already followed, so relative links in the body resolve against the right page.
 - **`Robots\RobotsTxtChecker`** — fetches and parses a host's `robots.txt`, exposing `isAllowed(url)` and
   `crawlDelay(url)` for a configured user agent (`Allow`/`Disallow`/`Crawl-delay` directives, most-specific-rule-wins
   matching, wildcard and `$` end-anchors).
