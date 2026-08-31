@@ -1,10 +1,6 @@
 # CrawlerToolkit
 
-Shared, framework-agnostic building blocks for polite and safe web crawlers. Extracted out
-of [lbonnet/link-checker-bundle](https://github.com/lbonnet-gda/link-checker-bundle)
-and [lbonnet/on-page-seo-bundle](https://github.com/lbonnet-gda/on-page-seo-bundle) once both bundles needed the same
-crawling infrastructure — this package holds only what's genuinely shared, never SEO- or link-specific domain logic,
-which stays in each bundle.
+Shared, framework-agnostic building blocks for polite and safe web crawlers.
 
 This is not a Symfony bundle: it's a plain library of standalone classes. Each consuming bundle wires them into its own
 service container itself.
