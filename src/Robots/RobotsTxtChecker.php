@@ -109,21 +109,6 @@ final class RobotsTxtChecker implements RobotsTxtCheckerInterface
         $crawlDelay = null;
         $collectingAgents = true;
 
-        $commit = function () use (&$groups, &$agents, &$rules, &$crawlDelay): void {
-            // @phpstan-ignore-next-line foreach.emptyArray
-            foreach ($agents as $agent) {
-                $existing = $groups[$agent] ?? ['rules' => [], 'crawlDelay' => null];
-                $groups[$agent] = [
-                    'rules' => array_merge($existing['rules'], $rules),
-                    // @phpstan-ignore-next-line nullCoalesce.variable
-                    'crawlDelay' => $crawlDelay ?? $existing['crawlDelay'],
-                ];
-            }
-            $agents = [];
-            $rules = [];
-            $crawlDelay = null;
-        };
-
         foreach (preg_split('/\r\n|\r|\n/', $content) ?: [] as $line) {
             $line = trim((string)preg_replace('/#.*/', '', $line));
             if ($line === '' || !str_contains($line, ':')) {
@@ -135,7 +120,10 @@ final class RobotsTxtChecker implements RobotsTxtCheckerInterface
 
             if ($field === 'user-agent') {
                 if (!$collectingAgents) {
-                    $commit();
+                    $groups = $this->commitGroup($groups, $agents, $rules, $crawlDelay);
+                    $agents = [];
+                    $rules = [];
+                    $crawlDelay = null;
                 }
                 $agents[] = strtolower($value);
                 $collectingAgents = true;
@@ -163,7 +151,7 @@ final class RobotsTxtChecker implements RobotsTxtCheckerInterface
 
             $rules[] = ['pattern' => $value, 'allow' => $field === 'allow'];
         }
-        $commit();
+        $groups = $this->commitGroup($groups, $agents, $rules, $crawlDelay);
 
         $ourUserAgent = strtolower($this->userAgent);
 
@@ -174,6 +162,29 @@ final class RobotsTxtChecker implements RobotsTxtCheckerInterface
         }
 
         return $groups['*'] ?? ['rules' => [], 'crawlDelay' => null];
+    }
+
+    /**
+     * Merges the rules and Crawl-delay collected for the current block of `User-agent` lines
+     * into the accumulated groups, one merged entry per agent named in that block.
+     *
+     * @param array<string, array{rules: list<array{pattern: string, allow: bool}>, crawlDelay: float|null}> $groups
+     * @param list<string> $agents
+     * @param list<array{pattern: string, allow: bool}> $rules
+     *
+     * @return array<string, array{rules: list<array{pattern: string, allow: bool}>, crawlDelay: float|null}>
+     */
+    private function commitGroup(array $groups, array $agents, array $rules, ?float $crawlDelay): array
+    {
+        foreach ($agents as $agent) {
+            $existing = $groups[$agent] ?? ['rules' => [], 'crawlDelay' => null];
+            $groups[$agent] = [
+                'rules' => array_merge($existing['rules'], $rules),
+                'crawlDelay' => $crawlDelay ?? $existing['crawlDelay'],
+            ];
+        }
+
+        return $groups;
     }
 
     /**
