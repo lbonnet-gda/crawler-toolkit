@@ -1,5 +1,10 @@
 # CrawlerToolkit
 
+[![CI](https://github.com/lbonnet-gda/crawler-toolkit/actions/workflows/ci.yaml/badge.svg)](https://github.com/lbonnet-gda/crawler-toolkit/actions/workflows/ci.yaml)
+[![Latest Version](https://img.shields.io/packagist/v/lbonnet/crawler-toolkit.svg)](https://packagist.org/packages/lbonnet/crawler-toolkit)
+[![PHP Version](https://img.shields.io/packagist/php-v/lbonnet/crawler-toolkit.svg)](https://packagist.org/packages/lbonnet/crawler-toolkit)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Shared, framework-agnostic building blocks for polite and safe web crawlers.
 
 This is not a Symfony bundle: it's a plain library of standalone classes. Each consuming bundle wires them into its own
