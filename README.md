@@ -39,6 +39,11 @@ service container itself.
 composer require lbonnet/crawler-toolkit
 ```
 
+## Security
+
+To report a vulnerability, please don't open a public issue — see [SECURITY.md](SECURITY.md) for how to report it
+privately.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
