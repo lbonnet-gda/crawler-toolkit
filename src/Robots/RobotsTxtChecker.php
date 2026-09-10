@@ -6,13 +6,15 @@ namespace Lbonnet\CrawlerToolkit\Robots;
 
 use Lbonnet\CrawlerToolkit\Http\BoundedContentReader;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Throwable;
 
 final class RobotsTxtChecker implements RobotsTxtCheckerInterface
 {
     private const MAX_CONTENT_LENGTH = 500_000;
+
+    /** A robots.txt that doesn't answer 2xx tells us nothing, so it is ignored entirely. */
+    private const SUCCESS_RANGE_END = 300;
 
     /** @var array<string, list<array{pattern: string, allow: bool}>> host => applicable rules */
     private array $rulesByHost = [];
@@ -83,7 +85,7 @@ final class RobotsTxtChecker implements RobotsTxtCheckerInterface
 
         try {
             $response = $this->httpClient->request(Request::METHOD_GET, $robotsUrl, ['timeout' => 5]);
-            if ($response->getStatusCode() >= Response::HTTP_MULTIPLE_CHOICES) {
+            if ($response->getStatusCode() >= self::SUCCESS_RANGE_END) {
                 return;
             }
 
