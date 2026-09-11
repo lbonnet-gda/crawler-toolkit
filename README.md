@@ -15,6 +15,9 @@ service container itself.
 - **`Http\ThrottledHttpClient`** — `HttpClientInterface` decorator enforcing a minimum delay between consecutive
   requests to the same host, with a `ThrottleExemptionInterface` to temporarily exempt one host (typically the site
   currently being audited).
+- **`Http\SiteThrottleExemption`** — scopes that exemption to the site being crawled: `begin()` exempts the start
+  URL's host (honoring its `robots.txt` `Crawl-delay`), `moveTo()` follows the site when the start URL redirects to
+  another host (e.g., apex to www), and `end()` clears it. Inert with a client that doesn't support exemptions.
 - **`Http\BoundedContentReader`** — reads an HTTP response body up to a byte cap, cancelling the request past that
   instead of buffering an unbounded (or malicious) response in memory.
 - **`Http\EffectiveUrlResolver`** — resolves the URL a response was ultimately served from after any redirects the HTTP
