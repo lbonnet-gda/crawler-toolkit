@@ -22,9 +22,13 @@ service container itself.
   instead of buffering an unbounded (or malicious) response in memory.
 - **`Http\EffectiveUrlResolver`** — resolves the URL a response was ultimately served from after any redirects the HTTP
   client already followed, so relative links in the body resolve against the right page.
-- **`Robots\RobotsTxtChecker`** — fetches and parses a host's `robots.txt`, exposing `isAllowed(url)` and
-  `crawlDelay(url)` for a configured user agent (`Allow`/`Disallow`/`Crawl-delay` directives, most-specific-rule-wins
-  matching, wildcard and `$` end-anchors).
+- **`Robots\RobotsTxtChecker`** — fetches and parses a host's `robots.txt` once, exposing `isAllowed(url)` and
+  `crawlDelay(url)` for a configured user agent (`Allow`/`Disallow`/`Crawl-delay` directives, wildcard and `$`
+  end-anchors). Rules are matched the way Google documents it: only the group naming the most specific user agent
+  applies, the longest rule wins, and the least restrictive one wins a tie. Through `RobotsTxtProviderInterface`,
+  `robotsTxt(url)` also returns the file itself as a `RobotsTxt`, even when the crawler doesn't honor it: its status as
+  Google reads it (`Found`, `NotFound` for a 4xx, `ServerError` for a 5xx, a 429, or a network failure) and
+  `isAllowed(url, userAgent)` for any crawler, Googlebot included.
 - **`Html\LinkDiscoverer`** — parses `<a href>` elements out of an HTML document into a `list<DiscoveredHref>`(absolute
   URL, anchor text, internal/external), handling relative URL resolution, `<base href>`, fragment stripping, ignored
   schemes (`mailto:`, `tel:`, ...), and exclusion regex patterns.

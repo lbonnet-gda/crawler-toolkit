@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lbonnet\CrawlerToolkit\Tests\Robots;
 
 use Lbonnet\CrawlerToolkit\Robots\RobotsTxtChecker;
+use Lbonnet\CrawlerToolkit\Robots\RobotsTxtStatus;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\Exception\TransportException;
@@ -147,5 +148,91 @@ final class RobotsTxtCheckerTest extends TestCase
         $checker->isAllowed('https://example.com/other');
 
         $this->assertSame(1, $calls);
+    }
+
+    /**
+     * @dataProvider responseStatusProvider
+     */
+    public function testClassifiesTheRobotsTxtResponseTheWayGoogleDoes(int $httpCode, RobotsTxtStatus $expected): void
+    {
+        $client = new MockHttpClient(
+            static fn() => new MockResponse("User-agent: *\nDisallow: /\n", ['http_code' => $httpCode])
+        );
+        $robotsTxt = (new RobotsTxtChecker($client, 'TestBot/1.0'))->robotsTxt('https://example.com/page');
+
+        $this->assertNotNull($robotsTxt);
+        $this->assertSame($expected, $robotsTxt->status);
+        $this->assertSame($httpCode, $robotsTxt->statusCode);
+        $this->assertSame('https://example.com/robots.txt', $robotsTxt->url);
+        $this->assertSame(
+            $expected !== RobotsTxtStatus::Found,
+            $robotsTxt->isAllowed('https://example.com/page', 'TestBot'),
+        );
+    }
+
+    /**
+     * @return iterable<string, array{int, RobotsTxtStatus}>
+     */
+    public static function responseStatusProvider(): iterable
+    {
+        yield '200' => [Response::HTTP_OK, RobotsTxtStatus::Found];
+        yield '404' => [Response::HTTP_NOT_FOUND, RobotsTxtStatus::NotFound];
+        yield '403' => [Response::HTTP_FORBIDDEN, RobotsTxtStatus::NotFound];
+        yield 'redirect left once the redirects run out' => [
+            Response::HTTP_MOVED_PERMANENTLY,
+            RobotsTxtStatus::NotFound,
+        ];
+        yield '429' => [Response::HTTP_TOO_MANY_REQUESTS, RobotsTxtStatus::ServerError];
+        yield '503' => [Response::HTTP_SERVICE_UNAVAILABLE, RobotsTxtStatus::ServerError];
+    }
+
+    public function testANetworkFailureIsAServerError(): void
+    {
+        $client = new MockHttpClient(static function (): MockResponse {
+            throw new TransportException('Connection timed out');
+        });
+        $robotsTxt = (new RobotsTxtChecker($client, 'TestBot/1.0'))->robotsTxt('https://example.com/');
+
+        $this->assertNotNull($robotsTxt);
+        $this->assertSame(RobotsTxtStatus::ServerError, $robotsTxt->status);
+        $this->assertNull($robotsTxt->statusCode);
+    }
+
+    public function testExposesTheRobotsTxtEvenWhenTheCrawlerDoesNotHonorIt(): void
+    {
+        $calls = 0;
+        $client = new MockHttpClient(static function () use (&$calls): MockResponse {
+            $calls++;
+
+            return new MockResponse("User-agent: Googlebot\nDisallow: /\n");
+        });
+        $checker = new RobotsTxtChecker($client, 'TestBot/1.0', enabled: false);
+
+        $this->assertTrue($checker->isAllowed('https://example.com/page'));
+        $this->assertSame(0, $calls);
+        $robotsTxt = $checker->robotsTxt('https://example.com/page');
+        $this->assertFalse($robotsTxt?->isAllowed('https://example.com/page', 'Googlebot'));
+        $this->assertSame(1, $calls);
+    }
+
+    public function testFollowsAtMostFiveRedirects(): void
+    {
+        $options = [];
+        $client = new MockHttpClient(
+            static function (string $method, string $url, array $requestOptions) use (&$options): MockResponse {
+                $options = $requestOptions;
+
+                return new MockResponse('');
+            }
+        );
+
+        (new RobotsTxtChecker($client, 'TestBot/1.0'))->robotsTxt('https://example.com/');
+
+        $this->assertSame(5, $options['max_redirects']);
+    }
+
+    public function testThereIsNoRobotsTxtForAUrlWithoutHost(): void
+    {
+        $this->assertNull((new RobotsTxtChecker(new MockHttpClient(), 'TestBot/1.0'))->robotsTxt('/relative/path'));
     }
 }
