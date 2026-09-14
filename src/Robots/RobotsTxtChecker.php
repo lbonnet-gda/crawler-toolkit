@@ -6,24 +6,17 @@ namespace Lbonnet\CrawlerToolkit\Robots;
 
 use Lbonnet\CrawlerToolkit\Http\BoundedContentReader;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Throwable;
 
-final class RobotsTxtChecker implements RobotsTxtCheckerInterface
+final class RobotsTxtChecker implements RobotsTxtCheckerInterface, RobotsTxtProviderInterface
 {
     private const MAX_CONTENT_LENGTH = 500_000;
+    private const MAX_REDIRECTS = 5;
 
-    /** A robots.txt that doesn't answer 2xx tells us nothing, so it is ignored entirely. */
-    private const SUCCESS_RANGE_END = 300;
-
-    /** @var array<string, list<array{pattern: string, allow: bool}>> host => applicable rules */
-    private array $rulesByHost = [];
-
-    /** @var array<string, float|null> host => Crawl-delay in seconds requested for our user agent */
-    private array $crawlDelayByHost = [];
-
-    /** @var array<string, true> hosts whose robots.txt has already been fetched (successfully or not) */
-    private array $fetchedHosts = [];
+    /** @var array<string, RobotsTxt> host => its robots.txt, fetched once */
+    private array $robotsTxtByHost = [];
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
@@ -38,20 +31,7 @@ final class RobotsTxtChecker implements RobotsTxtCheckerInterface
             return true;
         }
 
-        $host = parse_url($url, PHP_URL_HOST);
-        if (!is_string($host) || $host === '') {
-            return true;
-        }
-
-        $this->ensureLoaded($url, $host);
-
-        $path = parse_url($url, PHP_URL_PATH) ?: '/';
-        $query = parse_url($url, PHP_URL_QUERY);
-        if (is_string($query) && $query !== '') {
-            $path .= '?'.$query;
-        }
-
-        return $this->matchRules($this->rulesByHost[$host] ?? [], $path);
+        return $this->robotsTxt($url)?->isAllowed($url, $this->userAgent) ?? true;
     }
 
     public function crawlDelay(string $url): ?float
@@ -60,165 +40,51 @@ final class RobotsTxtChecker implements RobotsTxtCheckerInterface
             return null;
         }
 
+        return $this->robotsTxt($url)?->crawlDelay($this->userAgent);
+    }
+
+    public function robotsTxt(string $url): ?RobotsTxt
+    {
         $host = parse_url($url, PHP_URL_HOST);
         if (!is_string($host) || $host === '') {
             return null;
         }
 
-        $this->ensureLoaded($url, $host);
-
-        return $this->crawlDelayByHost[$host] ?? null;
+        return $this->robotsTxtByHost[$host] ??= $this->fetch($url, $host);
     }
 
-    private function ensureLoaded(string $url, string $host): void
+    private function fetch(string $url, string $host): RobotsTxt
     {
-        if (isset($this->fetchedHosts[$host])) {
-            return;
-        }
-
-        $this->fetchedHosts[$host] = true;
-        $this->rulesByHost[$host] = [];
-        $this->crawlDelayByHost[$host] = null;
-
         $scheme = parse_url($url, PHP_URL_SCHEME) ?: 'https';
         $robotsUrl = sprintf('%s://%s/robots.txt', $scheme, $host);
 
         try {
-            $response = $this->httpClient->request(Request::METHOD_GET, $robotsUrl, ['timeout' => 5]);
-            if ($response->getStatusCode() >= self::SUCCESS_RANGE_END) {
-                return;
-            }
+            $response = $this->httpClient->request(Request::METHOD_GET, $robotsUrl, [
+                'timeout' => 5,
+                'max_redirects' => self::MAX_REDIRECTS,
+            ]);
+            $statusCode = $response->getStatusCode();
 
-            $content = BoundedContentReader::read($this->httpClient, $response, self::MAX_CONTENT_LENGTH);
+            return match (self::statusFor($statusCode)) {
+                RobotsTxtStatus::ServerError => RobotsTxt::serverError($robotsUrl, $statusCode),
+                RobotsTxtStatus::NotFound => RobotsTxt::notFound($robotsUrl, $statusCode),
+                RobotsTxtStatus::Found => RobotsTxt::parse(
+                    $robotsUrl,
+                    BoundedContentReader::read($this->httpClient, $response, self::MAX_CONTENT_LENGTH),
+                    $statusCode,
+                ),
+            };
         } catch (Throwable) {
-            return;
+            return RobotsTxt::serverError($robotsUrl, null);
         }
-
-        $group = $this->parse($content);
-        $this->rulesByHost[$host] = $group['rules'];
-        $this->crawlDelayByHost[$host] = $group['crawlDelay'];
     }
 
-    /**
-     * @return array{rules: list<array{pattern: string, allow: bool}>, crawlDelay: float|null}
-     */
-    private function parse(string $content): array
+    private static function statusFor(int $statusCode): RobotsTxtStatus
     {
-        /** @var array<string, array{rules: list<array{pattern: string, allow: bool}>, crawlDelay: float|null}> $groups */
-        $groups = [];
-        $agents = [];
-        $rules = [];
-        $crawlDelay = null;
-        $collectingAgents = true;
-
-        foreach (preg_split('/\r\n|\r|\n/', $content) ?: [] as $line) {
-            $line = trim((string)preg_replace('/#.*/', '', $line));
-            if ($line === '' || !str_contains($line, ':')) {
-                continue;
-            }
-
-            [$field, $value] = array_map('trim', explode(':', $line, 2));
-            $field = strtolower($field);
-
-            if ($field === 'user-agent') {
-                if (!$collectingAgents) {
-                    $groups = $this->commitGroup($groups, $agents, $rules, $crawlDelay);
-                    $agents = [];
-                    $rules = [];
-                    $crawlDelay = null;
-                }
-                $agents[] = strtolower($value);
-                $collectingAgents = true;
-                continue;
-            }
-
-            if ($field === 'crawl-delay') {
-                $collectingAgents = false;
-
-                if (is_numeric($value)) {
-                    $crawlDelay = (float)$value;
-                }
-                continue;
-            }
-
-            if (!in_array($field, ['allow', 'disallow'], true)) {
-                continue;
-            }
-
-            $collectingAgents = false;
-
-            if ($field === 'disallow' && $value === '') {
-                continue; // an empty Disallow means "no restriction"
-            }
-
-            $rules[] = ['pattern' => $value, 'allow' => $field === 'allow'];
-        }
-        $groups = $this->commitGroup($groups, $agents, $rules, $crawlDelay);
-
-        $ourUserAgent = strtolower($this->userAgent);
-
-        foreach ($groups as $agent => $group) {
-            if ($agent !== '' && $agent !== '*' && str_contains($ourUserAgent, $agent)) {
-                return $group;
-            }
+        if ($statusCode === Response::HTTP_TOO_MANY_REQUESTS || $statusCode >= 500) {
+            return RobotsTxtStatus::ServerError;
         }
 
-        return $groups['*'] ?? ['rules' => [], 'crawlDelay' => null];
-    }
-
-    /**
-     * Merges the rules and Crawl-delay collected for the current block of `User-agent` lines
-     * into the accumulated groups, one merged entry per agent named in that block.
-     *
-     * @param array<string, array{rules: list<array{pattern: string, allow: bool}>, crawlDelay: float|null}> $groups
-     * @param list<string> $agents
-     * @param list<array{pattern: string, allow: bool}> $rules
-     *
-     * @return array<string, array{rules: list<array{pattern: string, allow: bool}>, crawlDelay: float|null}>
-     */
-    private function commitGroup(array $groups, array $agents, array $rules, ?float $crawlDelay): array
-    {
-        foreach ($agents as $agent) {
-            $existing = $groups[$agent] ?? ['rules' => [], 'crawlDelay' => null];
-            $groups[$agent] = [
-                'rules' => array_merge($existing['rules'], $rules),
-                'crawlDelay' => $crawlDelay ?? $existing['crawlDelay'],
-            ];
-        }
-
-        return $groups;
-    }
-
-    /**
-     * @param list<array{pattern: string, allow: bool}> $rules
-     */
-    private function matchRules(array $rules, string $path): bool
-    {
-        $bestLength = -1;
-        $allowed = true;
-
-        foreach ($rules as $rule) {
-            if (!$this->matchesPattern($path, $rule['pattern'])) {
-                continue;
-            }
-
-            $length = strlen($rule['pattern']);
-            if ($length > $bestLength) {
-                $bestLength = $length;
-                $allowed = $rule['allow'];
-            }
-        }
-
-        return $allowed;
-    }
-
-    private function matchesPattern(string $path, string $pattern): bool
-    {
-        $endAnchor = str_ends_with($pattern, '$');
-        $rawPattern = $endAnchor ? substr($pattern, 0, -1) : $pattern;
-
-        $regex = '#^'.str_replace('\*', '.*', preg_quote($rawPattern, '#')).($endAnchor ? '$' : '').'#';
-
-        return preg_match($regex, $path) === 1;
+        return $statusCode >= 200 && $statusCode < 300 ? RobotsTxtStatus::Found : RobotsTxtStatus::NotFound;
     }
 }
