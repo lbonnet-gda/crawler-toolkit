@@ -50,8 +50,8 @@ final class RobotsTxtCheckerTest extends TestCase
         foreach ($clients as $case => $client) {
             $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
 
-            $this->assertTrue($checker->isSiteBlocked('https://example.com/anything'), $case);
-            $this->assertFalse($checker->isAllowed('https://example.com/anything'), $case);
+            $this->assertTrue($checker->isSiteBlocked('https://example.com/anything'), (string)$case);
+            $this->assertFalse($checker->isAllowed('https://example.com/anything'), (string)$case);
         }
     }
 
