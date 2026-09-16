@@ -65,6 +65,24 @@ final class RobotsTxtTest extends TestCase
         $this->assertTrue($robotsTxt->isAllowed('https://example.com/page', 'Googlebot'));
     }
 
+    public function testCollectsTheSitemapsDeclaredAnywhereInTheFile(): void
+    {
+        $robotsTxt = self::found(
+            "Sitemap: https://example.com/sitemap.xml\n"
+            ."User-agent: *\nDisallow: /admin\n"
+            ."sitemap:https://cdn.example.com/news.xml # news\n"
+            ."Disallow: /tmp\n"
+            ."Sitemap: https://example.com/sitemap.xml\n"
+            ."Sitemap:\n",
+        );
+
+        $this->assertSame(
+            ['https://example.com/sitemap.xml', 'https://cdn.example.com/news.xml'],
+            $robotsTxt->sitemaps(),
+        );
+        $this->assertFalse($robotsTxt->isAllowed('https://example.com/tmp', 'Googlebot'));
+    }
+
     public function testAMissingOrUnreachableRobotsTxtHoldsNoRules(): void
     {
         $notFound = RobotsTxt::notFound('https://example.com/robots.txt', Response::HTTP_NOT_FOUND);
@@ -77,6 +95,7 @@ final class RobotsTxtTest extends TestCase
         $this->assertTrue($notFound->isAllowed('https://example.com/anything', 'Googlebot'));
         $this->assertTrue($serverError->isAllowed('https://example.com/anything', 'Googlebot'));
         $this->assertNull($serverError->crawlDelay('Googlebot'));
+        $this->assertSame([], $serverError->sitemaps());
     }
 
     private static function found(string $content): RobotsTxt
