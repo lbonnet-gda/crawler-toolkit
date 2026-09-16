@@ -31,7 +31,16 @@ final class RobotsTxtChecker implements RobotsTxtCheckerInterface, RobotsTxtProv
             return true;
         }
 
+        if ($this->isSiteBlocked($url)) {
+            return false;
+        }
+
         return $this->robotsTxt($url)?->isAllowed($url, $this->userAgent) ?? true;
+    }
+
+    public function isSiteBlocked(string $url): bool
+    {
+        return $this->enabled && $this->robotsTxt($url)?->status === RobotsTxtStatus::ServerError;
     }
 
     public function crawlDelay(string $url): ?float

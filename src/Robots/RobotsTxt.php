@@ -8,12 +8,14 @@ final class RobotsTxt
 {
     /**
      * @param array<string, array{rules: list<array{pattern: string, allow: bool}>, crawlDelay: float|null}> $groups
+     * @param list<string> $sitemaps
      */
     private function __construct(
         public readonly string $url,
         public readonly RobotsTxtStatus $status,
         public readonly ?int $statusCode,
         private readonly array $groups = [],
+        private readonly array $sitemaps = [],
     ) {
     }
 
@@ -23,6 +25,7 @@ final class RobotsTxt
          * @var array<string, array{rules: list<array{pattern: string, allow: bool}>, crawlDelay: float|null}> $groups
          */
         $groups = [];
+        $sitemaps = [];
         $agents = [];
         $rules = [];
         $crawlDelay = null;
@@ -36,6 +39,13 @@ final class RobotsTxt
 
             [$field, $value] = array_map('trim', explode(':', $line, 2));
             $field = strtolower($field);
+
+            if ($field === 'sitemap') {
+                if ($value !== '' && !in_array($value, $sitemaps, true)) {
+                    $sitemaps[] = $value;
+                }
+                continue;
+            }
 
             if ($field === 'user-agent') {
                 if (!$collectingAgents) {
@@ -81,6 +91,7 @@ final class RobotsTxt
             RobotsTxtStatus::Found,
             $statusCode,
             self::commitGroup($groups, $agents, $rules, $crawlDelay),
+            $sitemaps,
         );
     }
 
@@ -123,6 +134,14 @@ final class RobotsTxt
     public function crawlDelay(string $userAgent): ?float
     {
         return $this->groupFor($userAgent)['crawlDelay'];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function sitemaps(): array
+    {
+        return $this->sitemaps;
     }
 
     /**

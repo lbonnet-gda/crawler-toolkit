@@ -28,7 +28,9 @@ service container itself.
   applies, the longest rule wins, and the least restrictive one wins a tie. Through `RobotsTxtProviderInterface`,
   `robotsTxt(url)` also returns the file itself as a `RobotsTxt`, even when the crawler doesn't honor it: its status as
   Google reads it (`Found`, `NotFound` for a 4xx, `ServerError` for a 5xx, a 429, or a network failure) and
-  `isAllowed(url, userAgent)` for any crawler, Googlebot included.
+  `isAllowed(url, userAgent)` for any crawler, Googlebot included, plus the `Sitemap:` URLs it declares. Like Google,
+  the checker treats a host whose `robots.txt` answers a server error as off-limits: `isSiteBlocked(url)` is then true
+  and `isAllowed(url)` false for every URL of that host.
 - **`Html\LinkDiscoverer`** — parses `<a href>` elements out of an HTML document into a `list<DiscoveredHref>`(absolute
   URL, anchor text, internal/external), handling relative URL resolution, `<base href>`, fragment stripping, ignored
   schemes (`mailto:`, `tel:`, ...), and exclusion regex patterns.

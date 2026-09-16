@@ -33,14 +33,49 @@ final class RobotsTxtCheckerTest extends TestCase
         $this->assertTrue($checker->isAllowed('https://example.com/anything'));
     }
 
-    public function testAllowsEverythingWhenFetchFails(): void
+    public function testBlocksTheWholeSiteWhenRobotsTxtAnswersAServerError(): void
     {
-        $client = new MockHttpClient(static function (): MockResponse {
-            throw new TransportException('Connection refused');
-        });
-        $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
+        $clients = [
+            '503' => new MockHttpClient(
+                static fn() => new MockResponse('', ['http_code' => Response::HTTP_SERVICE_UNAVAILABLE])
+            ),
+            '429' => new MockHttpClient(
+                static fn() => new MockResponse('', ['http_code' => Response::HTTP_TOO_MANY_REQUESTS])
+            ),
+            'network failure' => new MockHttpClient(static function (): MockResponse {
+                throw new TransportException('Connection refused');
+            }),
+        ];
 
+        foreach ($clients as $case => $client) {
+            $checker = new RobotsTxtChecker($client, 'TestBot/1.0');
+
+            $this->assertTrue($checker->isSiteBlocked('https://example.com/anything'), (string)$case);
+            $this->assertFalse($checker->isAllowed('https://example.com/anything'), (string)$case);
+        }
+    }
+
+    public function testAServerErrorBlocksNothingWhenDisabled(): void
+    {
+        $client = new MockHttpClient(
+            static fn() => new MockResponse('', ['http_code' => Response::HTTP_SERVICE_UNAVAILABLE])
+        );
+        $checker = new RobotsTxtChecker($client, 'TestBot/1.0', enabled: false);
+
+        $this->assertFalse($checker->isSiteBlocked('https://example.com/anything'));
         $this->assertTrue($checker->isAllowed('https://example.com/anything'));
+    }
+
+    public function testAMissingOrForbiddenRobotsTxtDoesNotBlockTheSite(): void
+    {
+        foreach ([Response::HTTP_NOT_FOUND, Response::HTTP_FORBIDDEN] as $httpCode) {
+            $client = new MockHttpClient(static fn() => new MockResponse('', ['http_code' => $httpCode]));
+
+            $this->assertFalse(
+                (new RobotsTxtChecker($client, 'TestBot/1.0'))->isSiteBlocked('https://example.com/'),
+                (string)$httpCode,
+            );
+        }
     }
 
     public function testDisallowsMatchingPathUnderWildcardGroup(): void
