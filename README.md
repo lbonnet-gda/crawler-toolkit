@@ -1,5 +1,11 @@
 # CrawlerToolkit
 
+> [!WARNING]
+> **This package is deprecated and no longer maintained.** Its building blocks now live inside
+> [`lbonnet/seo-bundle`](https://github.com/lbonnet-gda/seo-bundle) and are no longer distributed separately. No further
+> release is planned, security fixes included; the repository stays online, read-only, so existing installs keep
+> resolving.
+
 [![CI](https://github.com/lbonnet-gda/crawler-toolkit/actions/workflows/ci.yaml/badge.svg)](https://github.com/lbonnet-gda/crawler-toolkit/actions/workflows/ci.yaml)
 [![Latest Version](https://img.shields.io/packagist/v/lbonnet/crawler-toolkit.svg)](https://packagist.org/packages/lbonnet/crawler-toolkit)
 [![PHP Version](https://img.shields.io/packagist/php-v/lbonnet/crawler-toolkit.svg)](https://packagist.org/packages/lbonnet/crawler-toolkit)
